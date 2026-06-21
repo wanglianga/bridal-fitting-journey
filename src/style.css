@@ -1,0 +1,107 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Noto+Serif+SC:wght@400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Noto Sans SC', system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: linear-gradient(180deg, #FFFEF9 0%, #FEF9EF 100%);
+  color: #3E2723;
+}
+
+#app {
+  min-height: 100vh;
+}
+
+@layer components {
+  .card-elegant {
+    @apply bg-white/90 backdrop-blur-sm rounded-elegant shadow-elegant border border-ivory-200/50;
+  }
+
+  .card-elegant-hover {
+    @apply card-elegant transition-all duration-300 hover:shadow-elegant-lg hover:-translate-y-0.5;
+  }
+
+  .btn-elegant {
+    @apply px-6 py-2.5 rounded-full font-medium transition-all duration-300;
+  }
+
+  .btn-primary {
+    @apply btn-elegant bg-rose-gold text-white hover:bg-rose-gold-dark shadow-md hover:shadow-lg;
+  }
+
+  .btn-secondary {
+    @apply btn-elegant border border-rose-gold/30 text-rose-gold hover:bg-rose-gold/10;
+  }
+
+  .btn-ghost {
+    @apply btn-elegant text-espresso hover:bg-espresso/5;
+  }
+
+  .text-gradient-gold {
+    @apply bg-gradient-to-r from-champagne-dark via-champagne to-champagne-light bg-clip-text text-transparent;
+  }
+
+  .text-gradient-rose {
+    @apply bg-gradient-to-r from-rose-gold-dark via-rose-gold to-rose-gold-light bg-clip-text text-transparent;
+  }
+
+  .heading-serif {
+    font-family: 'Playfair Display', 'Noto Serif SC', Georgia, serif;
+    font-weight: 600;
+  }
+
+  .divider-elegant {
+    @apply h-px bg-gradient-to-r from-transparent via-rose-gold/30 to-transparent;
+  }
+
+  .tag-pill {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium;
+  }
+
+  .input-elegant {
+    @apply w-full px-4 py-2.5 rounded-elegant border border-silk-dark bg-white/70 
+           focus:outline-none focus:ring-2 focus:ring-rose-gold/30 focus:border-rose-gold/50
+           transition-all duration-200 placeholder:text-espresso/30;
+  }
+
+  .progress-track {
+    @apply h-2 rounded-full bg-silk-dark overflow-hidden;
+  }
+
+  .progress-bar {
+    @apply h-full rounded-full bg-gradient-to-r from-rose-gold to-champagne transition-all duration-500;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .glass-effect {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+}
