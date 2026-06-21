@@ -30,21 +30,6 @@ function selectRound(id: string) {
 const completedCount = computed(() => {
   return fittingRounds.value.filter((r) => r.status === 'completed').length
 })
-
-const selectedPhotoAngles = computed(() => {
-  if (!selectedRound.value || selectedRound.value.photos.length === 0) return '待上传'
-  const angleLabels: Record<string, string> = {
-    front: '正面',
-    side: '侧面',
-    back: '背面',
-    detail: '细节',
-  }
-  return selectedRound.value.photos.map((photo) => angleLabels[photo.angle] || photo.angle).join('、')
-})
-
-const selectedAnnotationCount = computed(() => {
-  return selectedRound.value?.photos.reduce((total, photo) => total + photo.annotations.length, 0) || 0
-})
 </script>
 
 <template>
@@ -160,10 +145,6 @@ const selectedAnnotationCount = computed(() => {
                 </p>
                 <p class="text-[10px] text-espresso/50">笔记</p>
               </div>
-            </div>
-            <div class="mt-3 rounded-lg bg-ivory-50 px-3 py-2 text-xs leading-relaxed text-espresso/60">
-              <p>照片角度：{{ selectedPhotoAngles }}</p>
-              <p>批注总数：{{ selectedAnnotationCount }} 处，照片区会同步显示局部批注点与修改说明。</p>
             </div>
           </div>
         </div>

@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { TrendingUp, TrendingDown, Ruler, Scale, Activity, ChevronRight, Baby, Footprints, Info, Shield, AlertCircle } from 'lucide-vue-next'
+import { TrendingUp, TrendingDown, Ruler, Scale, Activity, ChevronRight, Baby, Footprints, Info } from 'lucide-vue-next'
 import BodyDataPanel from '@/components/BodyDataPanel.vue'
 import ViewModeSwitcher from '@/components/ViewModeSwitcher.vue'
-import DeliveryTimeline from '@/components/DeliveryTimeline.vue'
 import { useBrideStore } from '@/stores/bride'
 import { storeToRefs } from 'pinia'
 
@@ -188,74 +187,15 @@ function getWeightHeight(weight: number) {
               </div>
             </div>
 
-            <div v-if="!bride.isPregnant" class="p-4 bg-emerald-500/5 rounded-elegant border border-emerald-500/15 mb-5">
-              <div class="flex items-start gap-2 mb-2">
-                <div class="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
-                  <Shield class="w-4 h-4 text-emerald-600" />
-                </div>
-                <div>
-                  <p class="text-sm font-medium text-emerald-700">未怀孕 - 版型状态正常</p>
-                  <p class="text-xs text-emerald-600/70 mt-0.5">
-                    当前无孕期身形变化风险，礼服版型可按常规标准制作
-                  </p>
-                </div>
-                <span class="ml-auto px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-600 text-xs font-medium flex items-center gap-1">
-                  <Shield class="w-3 h-3" />
-                  低风险
-                </span>
-              </div>
-              <div class="mt-3 pt-3 border-t border-emerald-500/10">
-                <p class="text-xs font-medium text-emerald-700 mb-1.5">版型制作建议：</p>
-                <ul class="space-y-1">
-                  <li class="text-xs text-emerald-600/75 flex items-start gap-1.5">
-                    <span class="mt-0.5 w-1 h-1 rounded-full bg-emerald-500/50 flex-shrink-0"></span>
-                    建议维持当前体重波动不超过±2kg
-                  </li>
-                  <li class="text-xs text-emerald-600/75 flex items-start gap-1.5">
-                    <span class="mt-0.5 w-1 h-1 rounded-full bg-emerald-500/50 flex-shrink-0"></span>
-                    婚礼前2周确认最终鞋跟高度
-                  </li>
-                  <li class="text-xs text-emerald-600/75 flex items-start gap-1.5">
-                    <span class="mt-0.5 w-1 h-1 rounded-full bg-emerald-500/50 flex-shrink-0"></span>
-                    如有身形变化请提前2周预约复尺
-                  </li>
-                </ul>
-              </div>
-            </div>
-
             <div v-if="bride.isPregnant" class="p-4 bg-rose-gold/5 rounded-elegant border border-rose-gold/20 mb-5">
-              <div class="flex items-start gap-2 mb-2">
-                <div class="w-8 h-8 rounded-lg bg-mist-purple/15 flex items-center justify-center flex-shrink-0">
-                  <Baby class="w-4 h-4 text-mist-purple-dark" />
-                </div>
-                <div>
-                  <p class="text-sm font-medium text-mist-purple-dark">孕期特别调整说明</p>
-                  <p class="text-xs text-mist-purple-dark/70 mt-0.5">
-                    预产期 {{ bride.dueDate }}，需预留孕期调整空间
-                  </p>
-                </div>
-                <span class="ml-auto px-2 py-1 rounded-full bg-rose-gold/15 text-rose-gold text-xs font-medium flex items-center gap-1">
-                  <AlertCircle class="w-3 h-3" />
-                  需关注
-                </span>
+              <div class="flex items-center gap-2 mb-2">
+                <Baby class="w-5 h-5 text-rose-gold" />
+                <span class="text-sm font-medium text-rose-gold">孕期特别调整说明</span>
               </div>
-              <div class="mt-3 pt-3 border-t border-mist-purple/15">
-                <p class="text-xs font-medium text-mist-purple-dark mb-1.5">孕期制作注意事项：</p>
-                <ul class="space-y-1">
-                  <li class="text-xs text-mist-purple-dark/75 flex items-start gap-1.5">
-                    <span class="mt-0.5 w-1 h-1 rounded-full bg-mist-purple/50 flex-shrink-0"></span>
-                    礼服腰部预留5-8cm弹性调整空间
-                  </li>
-                  <li class="text-xs text-mist-purple-dark/75 flex items-start gap-1.5">
-                    <span class="mt-0.5 w-1 h-1 rounded-full bg-mist-purple/50 flex-shrink-0"></span>
-                    建议婚礼前1个月完成最终试衣
-                  </li>
-                  <li class="text-xs text-mist-purple-dark/75 flex items-start gap-1.5">
-                    <span class="mt-0.5 w-1 h-1 rounded-full bg-mist-purple/50 flex-shrink-0"></span>
-                    准备可调节腰带和胸垫备选方案
-                  </li>
-                </ul>
-              </div>
+              <p class="text-sm text-espresso/70 leading-relaxed">
+                预产期 {{ bride.dueDate }}，需预留孕期调整空间。建议礼服腰部采用可调节设计，
+                预留3-5cm放量，裙长预留2cm调整空间。
+              </p>
             </div>
 
             <div class="divider-elegant mb-4"></div>
@@ -324,10 +264,6 @@ function getWeightHeight(weight: number) {
                 </div>
               </div>
             </div>
-          </div>
-
-          <div v-if="isPatternmaker">
-            <DeliveryTimeline />
           </div>
         </div>
       </div>

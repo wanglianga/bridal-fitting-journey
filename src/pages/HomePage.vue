@@ -4,28 +4,22 @@ import { Heart, Scissors, Camera, Wallet, Sparkles } from 'lucide-vue-next'
 import HeroSection from '@/components/HeroSection.vue'
 import JourneyTimeline from '@/components/JourneyTimeline.vue'
 import ShootPlan from '@/components/ShootPlan.vue'
-import DeliveryTimeline from '@/components/DeliveryTimeline.vue'
 import StatCard from '@/components/StatCard.vue'
 import { useFittingStore } from '@/stores/fitting'
 import { useShootStore } from '@/stores/shoot'
 import { useBudgetStore } from '@/stores/budget'
 import { useDressStore } from '@/stores/dress'
-import { useBrideStore } from '@/stores/bride'
 import { storeToRefs } from 'pinia'
 
 const fittingStore = useFittingStore()
 const shootStore = useShootStore()
 const budgetStore = useBudgetStore()
 const dressStore = useDressStore()
-const brideStore = useBrideStore()
 
 const { completedRounds, totalRounds, pendingChanges } = storeToRefs(fittingStore)
 const { shootPlans } = storeToRefs(shootStore)
 const { budget, paidPercentage } = storeToRefs(budgetStore)
 const { selectedDress } = storeToRefs(dressStore)
-const { viewMode } = storeToRefs(brideStore)
-
-const isPatternmaker = computed(() => viewMode.value === 'patternmaker')
 
 const completedShoots = computed(() => {
   return shootPlans.value.filter(s => s.status === 'completed').length
@@ -83,10 +77,6 @@ const completedShoots = computed(() => {
         <div class="lg:col-span-3 space-y-6">
           <div class="animate-fade-in-up" style="animation-delay: 0.1s">
             <JourneyTimeline />
-          </div>
-
-          <div v-if="isPatternmaker" class="animate-fade-in-up" style="animation-delay: 0.15s">
-            <DeliveryTimeline />
           </div>
         </div>
 
