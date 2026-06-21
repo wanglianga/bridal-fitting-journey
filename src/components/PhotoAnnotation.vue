@@ -1,23 +1,54 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { MessageSquare, ThumbsUp, Wrench, Eye, EyeOff, Plus } from 'lucide-vue-next'
+import { ref, computed, watch, onMounted } from 'vue'
+import { MessageSquare, ThumbsUp, Wrench, Eye, EyeOff, Plus, ArrowLeftRight, Info, ChevronDown, ChevronUp } from 'lucide-vue-next'
 import { useFittingStore } from '@/stores/fitting'
 import { storeToRefs } from 'pinia'
-import type { AnnotationType } from '@/types'
+import type { AnnotationType, FittingPhoto } from '@/types'
 
 const fittingStore = useFittingStore()
-const { selectedRound, selectedPhoto, showAnnotations } = storeToRefs(fittingStore)
+const { selectedRound, selectedPhoto, showAnnotations, fittingRounds } = storeToRefs(fittingStore)
 
 const isAddingAnnotation = ref(false)
 const newAnnotationType = ref<AnnotationType>('note')
 const newAnnotationText = ref('')
+const showCompareMode = ref(false)
+const comparePosition = ref(50)
+const isDragging = ref(false)
+const expandedAnnotations = ref<Set<string>>(new Set())
 
 const photoList = computed(() => selectedRound.value?.photos || [])
+const activePhoto = computed(() => selectedPhoto.value || photoList.value[0] || null)
+const currentChanges = computed(() => selectedRound.value?.changes || [])
 
-const annotationColors: Record<AnnotationType, string> = {
-  change: '#B76E79',
-  note: '#B8A9C9',
-  praise: '#D4AF37',
+const firstRoundPhotos = computed(() => {
+  const firstRound = fittingRounds.value.find((r) => r.roundNumber === 1)
+  return firstRound?.photos || []
+})
+
+const comparePhoto = computed((): FittingPhoto | null => {
+  if (!activePhoto.value) return null
+  const angle = activePhoto.value.angle
+  return firstRoundPhotos.value.find((p) => p.angle === angle) || firstRoundPhotos.value[0] || null
+})
+
+const comparisonHighlights = computed(() => {
+  if (!selectedRound.value || selectedRound.value.roundNumber <= 1) return []
+  if (currentChanges.value.length > 0) {
+    return currentChanges.value.map((change) => {
+      const shoots = change.affectedShoots.length > 0 ? `影响：${change.affectedShoots.join('、')}` : '不影响拍摄'
+      return `${change.description}：${change.reason}，${shoots}`
+    })
+  }
+  return [
+    '本轮用于确认上一轮修改后的上身效果',
+    '对比首试可查看腰线、领口、拖尾和蕾丝花位的实际差异',
+  ]
+})
+
+const annotationColors: Record<AnnotationType, { bg: string; text: string; label: string }> = {
+  change: { bg: '#B76E79', text: '#B76E79', label: '修改' },
+  note: { bg: '#B8A9C9', text: '#9B8BB0', label: '备注' },
+  praise: { bg: '#D4AF37', text: '#A8892C', label: '好评' },
 }
 
 const annotationIcons: Record<AnnotationType, any> = {
@@ -26,16 +57,52 @@ const annotationIcons: Record<AnnotationType, any> = {
   praise: ThumbsUp,
 }
 
+const annotationStats = computed(() => {
+  if (!activePhoto.value) return { change: 0, note: 0, praise: 0, total: 0 }
+  const anns = activePhoto.value.annotations
+  return {
+    change: anns.filter((a) => a.type === 'change').length,
+    note: anns.filter((a) => a.type === 'note').length,
+    praise: anns.filter((a) => a.type === 'praise').length,
+    total: anns.length,
+  }
+})
+
+watch(
+  () => [selectedRound.value?.id, photoList.value.map((photo) => photo.id).join(',')],
+  () => {
+    if (photoList.value.length > 0 && !activePhoto.value) {
+      fittingStore.selectPhoto(photoList.value[0].id)
+    }
+    if (photoList.value.length > 0 && activePhoto.value && !photoList.value.find((p) => p.id === activePhoto.value?.id)) {
+      fittingStore.selectPhoto(photoList.value[0].id)
+    }
+  },
+  { immediate: true },
+)
+
+onMounted(() => {
+  if (photoList.value.length > 0 && !selectedPhoto.value) {
+    fittingStore.selectPhoto(photoList.value[0].id)
+  }
+})
+
 function selectPhoto(id: string) {
   fittingStore.selectPhoto(id)
+  expandedAnnotations.value.clear()
 }
 
 function handlePhotoClick(e: MouseEvent) {
   if (!isAddingAnnotation.value) return
-  const rect = (e.target as HTMLElement).getBoundingClientRect()
+  if (!activePhoto.value) return
+  if (selectedPhoto.value?.id !== activePhoto.value.id) {
+    fittingStore.selectPhoto(activePhoto.value.id)
+  }
+  const target = e.currentTarget as HTMLElement
+  const rect = target.getBoundingClientRect()
   const x = ((e.clientX - rect.left) / rect.width) * 100
   const y = ((e.clientY - rect.top) / rect.height) * 100
-  
+
   if (newAnnotationText.value.trim()) {
     fittingStore.addAnnotation({
       x,
@@ -52,19 +119,85 @@ function handlePhotoClick(e: MouseEvent) {
 function startAddAnnotation(type: AnnotationType) {
   isAddingAnnotation.value = true
   newAnnotationType.value = type
+  newAnnotationText.value = ''
 }
 
 function cancelAddAnnotation() {
   isAddingAnnotation.value = false
   newAnnotationText.value = ''
 }
+
+function toggleCompareMode() {
+  showCompareMode.value = !showCompareMode.value
+  comparePosition.value = 50
+}
+
+function handleSliderMouseDown(e: MouseEvent | TouchEvent) {
+  isDragging.value = true
+  e.preventDefault()
+}
+
+function handleSliderMove(e: MouseEvent | TouchEvent) {
+  if (!isDragging.value) return
+  const container = e.currentTarget as HTMLElement
+  const rect = container.getBoundingClientRect()
+  let clientX: number
+  if ('touches' in e) {
+    clientX = e.touches[0].clientX
+  } else {
+    clientX = e.clientX
+  }
+  const x = ((clientX - rect.left) / rect.width) * 100
+  comparePosition.value = Math.max(0, Math.min(100, x))
+}
+
+function handleSliderUp() {
+  isDragging.value = false
+}
+
+function toggleAnnotationExpand(id: string) {
+  if (expandedAnnotations.value.has(id)) {
+    expandedAnnotations.value.delete(id)
+  } else {
+    expandedAnnotations.value.add(id)
+  }
+}
+
+const angleLabels: Record<string, string> = {
+  front: '正面',
+  side: '侧面',
+  back: '背面',
+  detail: '细节',
+}
+
+function annotationPositionLabel(x: number, y: number) {
+  const horizontal = x < 34 ? '左侧' : x > 66 ? '右侧' : '中线'
+  const vertical = y < 34 ? '上段' : y > 66 ? '下段' : '中段'
+  return `${horizontal}${vertical}`
+}
 </script>
 
 <template>
-  <div class="card-elegant p-6">
-    <div class="flex items-center justify-between mb-4">
-      <h3 class="text-lg font-semibold text-espresso heading-serif">试穿照片</h3>
-      <div class="flex items-center gap-2">
+  <div class="card-elegant p-5 md:p-6">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+      <div>
+        <h3 class="text-lg font-semibold text-espresso heading-serif">试穿照片</h3>
+        <p v-if="activePhoto" class="text-xs text-espresso/50 mt-0.5">
+          {{ angleLabels[activePhoto.angle] || activePhoto.angle }}视角 ·
+          共 {{ annotationStats.total }} 处批注
+        </p>
+        <p v-else class="text-xs text-espresso/50 mt-0.5">本轮暂无上传照片</p>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <button
+          v-if="comparePhoto && selectedRound && selectedRound.roundNumber > 1"
+          class="flex items-center gap-1.5 px-3 py-2 rounded-elegant text-xs font-medium transition-all"
+          :class="showCompareMode ? 'bg-rose-gold text-white shadow-md' : 'bg-silk text-espresso/70 hover:bg-silk-dark'"
+          @click="toggleCompareMode"
+        >
+          <ArrowLeftRight class="w-3.5 h-3.5" />
+          {{ showCompareMode ? '关闭对比' : '对比首试' }}
+        </button>
         <button
           class="p-2 rounded-lg hover:bg-silk transition-colors"
           :class="showAnnotations ? 'text-rose-gold bg-rose-gold/10' : 'text-espresso/50'"
@@ -77,18 +210,53 @@ function cancelAddAnnotation() {
       </div>
     </div>
 
+    <div v-if="photoList.length > 0" class="mb-4">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <button
+          v-for="photo in photoList"
+          :key="photo.id"
+          class="relative overflow-hidden rounded-elegant border text-left transition-all"
+          :class="activePhoto?.id === photo.id ? 'border-rose-gold ring-2 ring-rose-gold/20' : 'border-silk-dark hover:border-rose-gold/40'"
+          @click="selectPhoto(photo.id)"
+        >
+          <img :src="photo.url" :alt="`${angleLabels[photo.angle] || photo.angle}试穿照片`" class="h-28 w-full object-cover sm:h-32" />
+          <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-espresso/80 to-transparent p-2">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-xs font-medium text-white">{{ angleLabels[photo.angle] || photo.angle }}</span>
+              <span class="rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-medium text-espresso">
+                {{ photo.annotations.length }} 批注
+              </span>
+            </div>
+          </div>
+        </button>
+      </div>
+    </div>
+
+    <div v-if="annotationStats.total > 0" class="flex flex-wrap gap-2 mb-4">
+      <span
+        v-for="type in (['change', 'note', 'praise'] as AnnotationType[])"
+        :key="type"
+        class="tag-pill"
+        :style="{ backgroundColor: annotationColors[type].bg + '18', color: annotationColors[type].text }"
+      >
+        <component :is="annotationIcons[type]" class="w-3 h-3 mr-1" />
+        {{ annotationColors[type].label }} {{ annotationStats[type] }}
+      </span>
+    </div>
+
     <div v-if="isAddingAnnotation" class="mb-4 p-3 bg-rose-gold/5 rounded-elegant border border-rose-gold/20">
       <p class="text-sm text-espresso/70 mb-2">点击照片添加批注点</p>
-      <div class="flex gap-2 mb-2">
+      <div class="flex flex-wrap gap-2 mb-2">
         <button
           v-for="type in (['change', 'note', 'praise'] as AnnotationType[])"
           :key="type"
           class="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all"
-          :class="newAnnotationType === type ? 'bg-rose-gold text-white' : 'bg-silk text-espresso/70'"
+          :class="newAnnotationType === type ? 'text-white' : 'bg-silk text-espresso/70'"
+          :style="newAnnotationType === type ? { backgroundColor: annotationColors[type].bg } : {}"
           @click="newAnnotationType = type"
         >
           <component :is="annotationIcons[type]" class="w-3 h-3" />
-          {{ type === 'change' ? '修改' : type === 'note' ? '备注' : '好评' }}
+          {{ annotationColors[type].label }}
         </button>
       </div>
       <input
@@ -103,74 +271,205 @@ function cancelAddAnnotation() {
       </div>
     </div>
 
-    <div class="relative aspect-[4/5] bg-silk/50 rounded-elegant overflow-hidden mb-4">
-      <img
-        v-if="selectedPhoto"
-        :src="selectedPhoto.url"
-        alt="试穿照片"
-        class="w-full h-full object-cover"
-        :class="{ 'cursor-crosshair': isAddingAnnotation }"
-        @click="handlePhotoClick"
-      />
-      <div v-else class="w-full h-full flex items-center justify-center text-espresso/40">
-        暂无照片
-      </div>
+    <div
+      class="relative aspect-[4/5] bg-silk/50 rounded-elegant overflow-hidden mb-4 select-none"
+      @mousemove="handleSliderMove"
+      @mouseup="handleSliderUp"
+      @mouseleave="handleSliderUp"
+      @touchmove="handleSliderMove"
+      @touchend="handleSliderUp"
+    >
+      <template v-if="showCompareMode && comparePhoto">
+        <div class="absolute inset-0">
+          <img
+            :src="comparePhoto.url"
+            :alt="'首试 ' + (angleLabels[comparePhoto.angle] || comparePhoto.angle)"
+            class="w-full h-full object-cover"
+          />
+          <div class="absolute top-3 left-3 px-2.5 py-1 bg-espresso/70 backdrop-blur-sm text-white text-xs rounded-full">
+            首试 · {{ angleLabels[comparePhoto.angle] || comparePhoto.angle }}
+          </div>
+        </div>
+
+        <div
+          class="absolute inset-0 overflow-hidden"
+          :style="{ clipPath: `inset(0 0 0 ${comparePosition}%)` }"
+        >
+          <img
+            v-if="activePhoto"
+            :src="activePhoto.url"
+            alt="当前试穿"
+            class="w-full h-full object-cover"
+            :class="{ 'cursor-crosshair': isAddingAnnotation }"
+            @click="handlePhotoClick"
+          />
+          <div v-else class="w-full h-full flex items-center justify-center text-espresso/40">
+            暂无照片
+          </div>
+          <div class="absolute top-3 right-3 px-2.5 py-1 bg-rose-gold/90 backdrop-blur-sm text-white text-xs rounded-full">
+            当前 · {{ selectedRound?.title }}
+          </div>
+        </div>
+
+        <div
+          class="absolute top-0 bottom-0 w-1 bg-white shadow-lg cursor-ew-resize z-10"
+          :style="{ left: `${comparePosition}%`, transform: 'translateX(-50%)' }"
+          @mousedown="handleSliderMouseDown"
+          @touchstart="handleSliderMouseDown"
+        >
+          <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white shadow-elegant flex items-center justify-center">
+            <ArrowLeftRight class="w-5 h-5 text-espresso/60" />
+          </div>
+        </div>
+      </template>
+
+      <template v-else>
+        <img
+          v-if="activePhoto"
+          :src="activePhoto.url"
+          alt="试穿照片"
+          class="w-full h-full object-cover"
+          :class="{ 'cursor-crosshair': isAddingAnnotation }"
+          @click="handlePhotoClick"
+        />
+        <div v-else class="w-full h-full flex items-center justify-center text-espresso/40">
+          <div class="text-center">
+            <Plus class="w-12 h-12 mx-auto text-espresso/20 mb-2" />
+            <p class="text-sm">暂无照片</p>
+          </div>
+        </div>
+      </template>
 
       <div
-        v-if="showAnnotations && selectedPhoto"
+        v-if="showAnnotations && activePhoto && !showCompareMode"
         class="absolute inset-0 pointer-events-none"
       >
         <div
-          v-for="annotation in selectedPhoto.annotations"
+          v-for="annotation in activePhoto.annotations"
           :key="annotation.id"
-          class="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto group"
+          class="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto"
           :style="{ left: `${annotation.x}%`, top: `${annotation.y}%` }"
         >
-          <div
-            class="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs shadow-lg animate-pulse-soft"
-            :style="{ backgroundColor: annotationColors[annotation.type] }"
+          <button
+            class="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs shadow-lg transition-all hover:scale-125"
+            :style="{ backgroundColor: annotationColors[annotation.type].bg }"
+            @click.stop="toggleAnnotationExpand(annotation.id)"
           >
-            <component :is="annotationIcons[annotation.type]" class="w-3 h-3" />
-          </div>
-          <div class="absolute left-1/2 -translate-x-1/2 top-8 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-            <div class="bg-white shadow-elegant-lg rounded-elegant p-3 min-w-[160px]">
-              <p class="text-xs text-espresso/50 mb-1">{{ annotation.author }}</p>
-              <p class="text-sm text-espresso">{{ annotation.text }}</p>
+            <component :is="annotationIcons[annotation.type]" class="w-3.5 h-3.5" />
+          </button>
+
+          <div
+            v-if="expandedAnnotations.has(annotation.id)"
+            class="absolute left-1/2 -translate-x-1/2 top-9 z-20 min-w-[200px]"
+          >
+            <div class="bg-white shadow-elegant-xl rounded-elegant p-3 border border-ivory-200">
+              <div class="flex items-center justify-between mb-2">
+                <span
+                  class="tag-pill text-[10px]"
+                  :style="{ backgroundColor: annotationColors[annotation.type].bg + '20', color: annotationColors[annotation.type].text }"
+                >
+                  <component :is="annotationIcons[annotation.type]" class="w-2.5 h-2.5 mr-1" />
+                  {{ annotationColors[annotation.type].label }}
+                </span>
+                <span class="text-[10px] text-espresso/40">{{ annotation.author }}</span>
+              </div>
+              <p class="text-sm text-espresso leading-relaxed">{{ annotation.text }}</p>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-      <button
-        v-for="photo in photoList"
-        :key="photo.id"
-        class="flex-shrink-0 w-16 h-20 rounded-lg overflow-hidden border-2 transition-all"
-        :class="selectedPhoto?.id === photo.id ? 'border-rose-gold ring-2 ring-rose-gold/20' : 'border-transparent hover:border-rose-gold/30'"
-        @click="selectPhoto(photo.id)"
-      >
-        <img :src="photo.url" :alt="photo.angle" class="w-full h-full object-cover" />
-      </button>
-      <button
-        class="flex-shrink-0 w-16 h-20 rounded-lg border-2 border-dashed border-silk-dark flex items-center justify-center text-espresso/40 hover:border-rose-gold/30 hover:text-rose-gold transition-all"
-        @click="startAddAnnotation('note')"
-      >
-        <Plus class="w-5 h-5" />
-      </button>
+    <div v-if="comparePhoto && activePhoto && selectedRound && selectedRound.roundNumber > 1" class="mb-4 rounded-elegant border border-champagne/25 bg-champagne/10 p-3">
+      <div class="flex items-start gap-2">
+        <ArrowLeftRight class="mt-0.5 h-4 w-4 flex-shrink-0 text-champagne-dark" />
+        <div class="min-w-0">
+          <p class="text-sm font-medium text-espresso">前后效果差异</p>
+          <p class="text-xs text-espresso/60">
+            当前 {{ angleLabels[activePhoto.angle] || activePhoto.angle }} 与首试同角度对比，左侧为首试，右侧为 {{ selectedRound.title }}。
+          </p>
+          <div class="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-2">
+            <p
+              v-for="highlight in comparisonHighlights"
+              :key="highlight"
+              class="rounded-lg bg-white/70 px-2.5 py-1.5 text-xs leading-relaxed text-espresso/70"
+            >
+              {{ highlight }}
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <div class="flex gap-2 mt-3">
+    <div v-if="activePhoto && activePhoto.annotations.length > 0" class="mb-4">
+      <div class="flex items-center justify-between mb-2">
+        <p class="text-xs font-medium text-espresso/70">本张照片批注详情</p>
+        <span class="text-xs text-espresso/40">点击批注点查看详情</span>
+      </div>
+      <div class="space-y-2 max-h-40 overflow-y-auto scrollbar-hide pr-1">
+        <div
+          v-for="annotation in activePhoto.annotations"
+          :key="annotation.id"
+          class="p-2.5 rounded-elegant border transition-all cursor-pointer"
+          :class="expandedAnnotations.has(annotation.id) ? 'border-rose-gold/30 bg-rose-gold/5' : 'border-silk-dark bg-silk/20 hover:bg-silk/40'"
+          @click="toggleAnnotationExpand(annotation.id)"
+        >
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span
+                class="w-5 h-5 rounded-full flex items-center justify-center"
+                :style="{ backgroundColor: annotationColors[annotation.type].bg }"
+              >
+                <component :is="annotationIcons[annotation.type]" class="w-3 h-3 text-white" />
+              </span>
+              <span class="text-sm font-medium text-espresso line-clamp-1">{{ annotation.text }}</span>
+            </div>
+            <ChevronDown
+              v-if="!expandedAnnotations.has(annotation.id)"
+              class="w-4 h-4 text-espresso/40 flex-shrink-0"
+            />
+            <ChevronUp v-else class="w-4 h-4 text-rose-gold flex-shrink-0" />
+          </div>
+          <div v-if="expandedAnnotations.has(annotation.id)" class="mt-2 pt-2 border-t border-silk-dark/50">
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-espresso/50">{{ annotation.author }}</span>
+              <span
+                class="tag-pill"
+                :style="{ backgroundColor: annotationColors[annotation.type].bg + '18', color: annotationColors[annotation.type].text }"
+              >
+                {{ annotationColors[annotation.type].label }}
+              </span>
+            </div>
+            <p class="mt-2 text-xs leading-relaxed text-espresso/60">
+              局部位置：{{ annotationPositionLabel(annotation.x, annotation.y) }} · 坐标 {{ Math.round(annotation.x) }}%, {{ Math.round(annotation.y) }}%
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex flex-wrap gap-2">
       <button
         v-for="type in (['change', 'note', 'praise'] as AnnotationType[])"
         :key="type"
         class="flex items-center gap-1.5 px-3 py-2 rounded-elegant text-xs font-medium transition-all hover:shadow-md"
-        :style="{ backgroundColor: annotationColors[type] + '15', color: annotationColors[type] }"
+        :style="{ backgroundColor: annotationColors[type].bg + '15', color: annotationColors[type].text }"
         @click="startAddAnnotation(type)"
       >
         <component :is="annotationIcons[type]" class="w-3.5 h-3.5" />
-        {{ type === 'change' ? '添加修改' : type === 'note' ? '添加备注' : '添加好评' }}
+        添加{{ annotationColors[type].label }}
       </button>
+    </div>
+
+    <div v-if="showCompareMode" class="mt-4 p-3 bg-champagne/10 rounded-elegant border border-champagne/20">
+      <div class="flex items-start gap-2">
+        <Info class="w-4 h-4 text-champagne-dark flex-shrink-0 mt-0.5" />
+        <div class="text-xs text-espresso/70 leading-relaxed">
+          <p class="font-medium text-espresso mb-1">前后对比说明</p>
+          <p>拖动中间滑块可对比首试（左侧）与当前试衣（右侧）的效果差异。</p>
+          <p class="mt-1">可直观看到版型修改、面料升级、细节调整带来的变化。</p>
+        </div>
+      </div>
     </div>
   </div>
 </template>
