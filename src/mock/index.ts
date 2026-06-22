@@ -8,6 +8,7 @@ import type {
   Budget,
   Accessory,
   PhotoAngle,
+  Annotation,
 } from "@/types";
 
 export const mockBride: Bride = {
@@ -158,11 +159,32 @@ export const mockFabricSwatches: FabricSwatch[] = [
   },
 ];
 
-const createFittingPhoto = (id: string, angle: PhotoAngle) => ({
+const createAnnotation = (
+  id: string,
+  x: number,
+  y: number,
+  text: string,
+  type: Annotation['type'],
+  author: string = '陈顾问',
+): Annotation => ({
   id,
-  url: `https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=bride%20wedding%20dress%20fitting%20${angle}%20view%20elegant&image_size=portrait_4_3`,
+  x,
+  y,
+  text,
+  type,
+  author,
+  createdAt: new Date().toISOString(),
+})
+
+const createFittingPhoto = (
+  id: string,
+  angle: PhotoAngle,
+  annotations: Annotation[] = [],
+) => ({
+  id,
+  url: `https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=bride%20wedding%20dress%20fitting%20${angle}%20view%20elegant%20ivory&image_size=portrait_4_3`,
   angle,
-  annotations: [],
+  annotations,
 });
 
 export const mockFittingRounds: FittingRound[] = [
@@ -174,9 +196,19 @@ export const mockFittingRounds: FittingRound[] = [
     title: "初次试衣",
     description: "白坯试穿，确认整体版型和尺寸",
     photos: [
-      createFittingPhoto("photo-001", "front"),
-      createFittingPhoto("photo-002", "side"),
-      createFittingPhoto("photo-003", "back"),
+      createFittingPhoto("photo-001", "front", [
+        createAnnotation("ann-001", 50, 42, "腰部需收窄约2cm，当前略显宽松", "change"),
+        createAnnotation("ann-002", 50, 22, "领口可再调低1.5cm，更显颈部线条", "change"),
+        createAnnotation("ann-003", 50, 8, "整体头型和发型搭配效果很好", "praise"),
+      ]),
+      createFittingPhoto("photo-002", "side", [
+        createAnnotation("ann-004", 35, 38, "侧面腰线效果不错，S曲线明显", "praise"),
+        createAnnotation("ann-005", 30, 62, "裙摆侧缝需微调，走动时更自然", "note"),
+      ]),
+      createFittingPhoto("photo-003", "back", [
+        createAnnotation("ann-006", 50, 35, "后背拉链位置准确，贴合度好", "praise"),
+        createAnnotation("ann-007", 50, 20, "肩背处版型合身，无需调整", "note"),
+      ]),
     ],
     consultantNotes:
       "整体版型合身，肩线位置准确。腰部需要稍收紧约2cm，胸围舒适。新娘行走自如，无明显束缚感。",
@@ -189,7 +221,7 @@ export const mockFittingRounds: FittingRound[] = [
         id: "change-001",
         description: "腰部收窄2cm",
         reason: "腰部略显宽松，需要更好的收腰效果",
-        affectedShoots: ["婚纱照"],
+        affectedShoots: ["shoot-001"],
         deliveryImpact: "minor",
         cost: 800,
         status: "completed",
@@ -200,7 +232,7 @@ export const mockFittingRounds: FittingRound[] = [
         id: "change-002",
         description: "领口调低1.5cm",
         reason: "家人建议，更显颈部线条",
-        affectedShoots: ["婚纱照", "婚礼当天"],
+        affectedShoots: ["shoot-001", "shoot-003"],
         deliveryImpact: "minor",
         cost: 500,
         status: "completed",
@@ -218,10 +250,23 @@ export const mockFittingRounds: FittingRound[] = [
     title: "二次试衣",
     description: "面料试样，确认面料效果和细节",
     photos: [
-      createFittingPhoto("photo-004", "front"),
-      createFittingPhoto("photo-005", "side"),
-      createFittingPhoto("photo-006", "back"),
-      createFittingPhoto("photo-007", "detail"),
+      createFittingPhoto("photo-004", "front", [
+        createAnnotation("ann-008", 50, 45, "腰部修改效果很好，收腰明显", "praise"),
+        createAnnotation("ann-009", 35, 55, "缎面光泽度极佳，上身效果超出预期", "praise"),
+        createAnnotation("ann-010", 50, 28, "领口修改到位，露出优美锁骨线条", "praise"),
+      ]),
+      createFittingPhoto("photo-005", "side", [
+        createAnnotation("ann-011", 40, 50, "侧身蕾丝花型需微调，左右稍不对称", "change"),
+        createAnnotation("ann-012", 30, 70, "拖尾长度合适，地面效果好", "praise"),
+      ]),
+      createFittingPhoto("photo-006", "back", [
+        createAnnotation("ann-013", 50, 40, "后背V型设计优雅，露肤度恰到好处", "praise"),
+        createAnnotation("ann-014", 50, 75, "拖尾蕾丝花边需对齐，当前稍有偏移", "note"),
+      ]),
+      createFittingPhoto("photo-007", "detail", [
+        createAnnotation("ann-015", 50, 50, "法国蕾丝质感细腻，花纹清晰", "praise"),
+        createAnnotation("ann-016", 30, 30, "手工钉珠排列整齐，光泽度好", "praise"),
+      ]),
     ],
     consultantNotes:
       "面料效果超出预期，光泽度和垂坠感都很好。蕾丝拼接处需要微调，拖尾长度合适。",
@@ -234,8 +279,8 @@ export const mockFittingRounds: FittingRound[] = [
         id: "change-003",
         description: "蕾丝花位调整",
         reason: "侧身蕾丝花型不够对称",
-        affectedShoots: ["婚纱照"],
-        deliveryImpact: "minor",
+        affectedShoots: ["shoot-001"],
+        deliveryImpact: "major",
         cost: 1200,
         status: "in-progress",
         fittingRoundId: "fitting-002",
@@ -252,9 +297,14 @@ export const mockFittingRounds: FittingRound[] = [
     title: "三次试衣",
     description: "成品试穿，确认最终效果",
     photos: [
-      createFittingPhoto("photo-008", "front"),
-      createFittingPhoto("photo-009", "side"),
-      createFittingPhoto("photo-010", "back"),
+      createFittingPhoto("photo-008", "front", [
+        createAnnotation("ann-017", 45, 52, "蕾丝花位已调整，对称效果良好", "praise"),
+        createAnnotation("ann-018", 50, 80, "裙摆长度需最终确认（与鞋跟高度匹配）", "note"),
+      ]),
+      createFittingPhoto("photo-009", "side", [
+        createAnnotation("ann-019", 38, 65, "侧身曲线流畅，修改效果满意", "praise"),
+      ]),
+      createFittingPhoto("photo-010", "back", []),
     ],
     consultantNotes: "",
     mobilityDifficulty: 0,
